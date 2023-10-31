@@ -1994,7 +1994,7 @@ public class DateFormatters {
 
         if ("yyyy-MM-dd'T'HH:mm:ssX".equals(input)) {
             return ZONED_FORMAT_PARSER;
-        } else if("yyyy-MM-dd HH:mm:ss".equals(input)) {
+        } else if(FormatNames.FASTISO8601.equals(input)) {
             return HTTP_LOGS_FORMAT_PARSER;
         } else if (FormatNames.ISO8601.matches(input)) {
             return ISO_8601;
