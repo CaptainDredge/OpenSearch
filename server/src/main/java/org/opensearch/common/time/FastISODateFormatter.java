@@ -27,8 +27,7 @@ public class FastISODateFormatter implements DateFormatter {
         if (local) {
             return FastDTParser.parseLocalDateTime(input, javaDateFormatter);
         }
-        return FastDTParser.
-            parse(input);
+        return FastDTParser.parse(input);
     }
 
     @Override
@@ -38,9 +37,6 @@ public class FastISODateFormatter implements DateFormatter {
 
     @Override
     public DateFormatter withLocale(Locale locale) {
-//        if (Locale.ROOT.equals(locale)) {
-//            return this;
-//        }
         return this.javaDateFormatter.withLocale(locale);
     }
 
@@ -51,6 +47,11 @@ public class FastISODateFormatter implements DateFormatter {
 
     @Override
     public String pattern() {
+        return javaDateFormatter.pattern();
+    }
+
+    @Override
+    public String printPattern() {
         return javaDateFormatter.pattern();
     }
 

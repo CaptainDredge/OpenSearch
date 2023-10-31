@@ -44,6 +44,7 @@ import java.util.stream.Stream;
  */
 public enum FormatNames {
     ISO8601(null, "iso8601"),
+    FASTISO8601("fastISO8601", "fastiso8601"),
     BASIC_DATE("basicDate", "basic_date"),
     BASIC_DATE_TIME("basicDateTime", "basic_date_time"),
     BASIC_DATE_TIME_NO_MILLIS("basicDateTimeNoMillis", "basic_date_time_no_millis"),
