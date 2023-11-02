@@ -204,7 +204,7 @@ class JavaDateFormatter implements DateFormatter {
         List<DateTimeFormatter> parsers = new ArrayList<>(formatters.size());
         List<DateTimeFormatter> roundUpParsers = new ArrayList<>(formatters.size());
 
-        assert printFormatter instanceof JavaDateFormatter;
+        assert printFormatter instanceof JavaDateFormatter || printFormatter instanceof FastISODateFormatter;
         JavaDateFormatter javaPrintFormatter = (JavaDateFormatter) printFormatter;
         DateTimeFormatter printer = javaPrintFormatter.getPrinter();
         for (DateFormatter formatter : formatters) {

@@ -32,11 +32,17 @@ public class FastISODateFormatter implements DateFormatter {
 
     @Override
     public DateFormatter withZone(ZoneId zoneId) {
+        if (zoneId == ZoneId.systemDefault()) {
+            return this;
+        }
         return javaDateFormatter.withZone(zoneId);
     }
 
     @Override
     public DateFormatter withLocale(Locale locale) {
+        if (locale == Locale.ROOT) {
+            return this;
+        }
         return this.javaDateFormatter.withLocale(locale);
     }
 
@@ -71,7 +77,7 @@ public class FastISODateFormatter implements DateFormatter {
     }
 
     public static void main(String[] args) {
-        System.out.println(Double.toString(1.239 ));
-        System.out.println(com.fasterxml.jackson.core.io.schubfach.DoubleToDecimal.toString(1.239 ));
+        System.out.println(Double.toString(1.239));
+        System.out.println(com.fasterxml.jackson.core.io.schubfach.DoubleToDecimal.toString(1.239));
     }
 }

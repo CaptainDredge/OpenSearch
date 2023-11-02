@@ -1957,13 +1957,35 @@ public class DateFormatters {
             .withResolverStyle(ResolverStyle.STRICT)
     );
 
-    public static final DateFormatter ZONED_FORMAT_PARSER = new FastISODateFormatter(new JavaDateFormatter(
-        "yyyy-MM-dd'T'HH:mm:ssX",
-        new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ssX").toFormatter(Locale.ROOT).withResolverStyle(ResolverStyle.STRICT)), false);
+    public static final DateFormatter ZONED_FORMAT_PARSER = new FastISODateFormatter(
+        new JavaDateFormatter(
+            "yyyy-MM-dd'T'HH:mm:ssX",
+            new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ssX")
+                .toFormatter(Locale.ROOT)
+                .withResolverStyle(ResolverStyle.STRICT)
+        ),
+        false
+    );
 
-    public static final DateFormatter HTTP_LOGS_FORMAT_PARSER = new FastISODateFormatter(new JavaDateFormatter(
-        "yyyy-MM-dd HH:mm:ss",
-        new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd HH:mm:ss").toFormatter(Locale.ROOT).withResolverStyle(ResolverStyle.STRICT)), true);
+    public static final DateFormatter HTTP_LOGS_FORMAT_PARSER = new FastISODateFormatter(
+        new JavaDateFormatter(
+            "yyyy-MM-dd HH:mm:ss",
+            new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd HH:mm:ss")
+                .toFormatter(Locale.ROOT)
+                .withResolverStyle(ResolverStyle.STRICT)
+        ),
+        true
+    );
+
+    public static final DateFormatter SO_FORMAT_PARSER = new FastISODateFormatter(
+        new JavaDateFormatter(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+                .toFormatter(Locale.ROOT)
+                .withResolverStyle(ResolverStyle.STRICT)
+        ),
+        false
+    );
 
     /////////////////////////////////////////
     //
@@ -1994,7 +2016,9 @@ public class DateFormatters {
 
         if ("yyyy-MM-dd'T'HH:mm:ssX".equals(input)) {
             return ZONED_FORMAT_PARSER;
-        } else if(FormatNames.FASTISO8601.equals(input)) {
+        } else if (FormatNames.FASTISO8601.matches(input)) {
+            return SO_FORMAT_PARSER;
+        } else if (FormatNames.FASTISO8601_LOCAL.matches(input)) {
             return HTTP_LOGS_FORMAT_PARSER;
         } else if (FormatNames.ISO8601.matches(input)) {
             return ISO_8601;
