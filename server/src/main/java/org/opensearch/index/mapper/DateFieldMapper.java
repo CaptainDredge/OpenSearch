@@ -713,7 +713,7 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
             try {
                 long timeIn = System.nanoTime();
                 timestamp = fieldType().parse(dateAsString);
-                System.out.println(System.currentTimeMillis() - timeIn);
+//                System.out.println(System.currentTimeMillis() - timeIn);
             } catch (IllegalArgumentException | OpenSearchParseException | DateTimeException | ArithmeticException e) {
                 if (ignoreMalformed) {
                     context.addIgnoredField(mappedFieldType.name());
