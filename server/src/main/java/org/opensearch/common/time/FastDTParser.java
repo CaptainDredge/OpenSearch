@@ -158,13 +158,4 @@ public class FastDTParser {
             return (buf[pos] - 48) * 1000 + (v2 << 6) + (v2 << 5) + (v2 << 2) + (v3 << 3) + (v3 << 1) + buf[pos + 3] - 48;
         }
     }
-
-    public static void main(String[] args) {
-        // System.out.println(FastDTParser.parse("2022-04-05 22:00:12Z"));
-        // System.out.println(FastDTParser.parseLocalDateTime("2022-04-05 22:00:12", null));
-        // System.out.println(DateFormatters.ISO_8601.parse("2022-04-05T22:00:12Z"));
-        // DateFieldMapper.DEFAULT_DATE_TIME_FORMATTER.parse("1687933988");
-        System.out.println(com.fasterxml.jackson.core.io.schubfach.DoubleToDecimal.toString(9.80908925027371949647e-45));
-        System.out.println(Double.toString(9.80908925027371949647e-45));
-    }
 }
