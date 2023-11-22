@@ -430,4 +430,56 @@ public class DateUtils {
         Clock millisResolutionClock = Clock.tick(clock, Duration.ofMillis(1));
         return ZonedDateTime.now(millisResolutionClock);
     }
+
+    static boolean allDigits(char[] buffer, int start, int end) {
+        for (int i = start; i < end; i++) {
+            if (buffer[i] < '0' || buffer[i] > '9') return false;
+        }
+        return true;
+    }
+
+    static int readNanos(final char[] tmp, final int len, final int offset) {
+        switch (len - offset) {
+            case 1:
+                return 100000000 * (tmp[offset] - 48);
+            case 2:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48);
+            case 3:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48);
+            case 4:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48) + 100000
+                    * (tmp[offset + 3] - 48);
+            case 5:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48) + 100000
+                    * (tmp[offset + 3] - 48) + 10000 * (tmp[offset + 4] - 48);
+            case 6:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48) + 100000
+                    * (tmp[offset + 3] - 48) + 10000 * (tmp[offset + 4] - 48) + 1000 * (tmp[offset + 5] - 48);
+            case 7:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48) + 100000
+                    * (tmp[offset + 3] - 48) + 10000 * (tmp[offset + 4] - 48) + 1000 * (tmp[offset + 5] - 48) + 100 * (tmp[offset + 6]
+                        - 48);
+            case 8:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48) + 100000
+                    * (tmp[offset + 3] - 48) + 10000 * (tmp[offset + 4] - 48) + 1000 * (tmp[offset + 5] - 48) + 100 * (tmp[offset + 6] - 48)
+                    + 10 * (tmp[offset + 7] - 48);
+            default:
+                return 100000000 * (tmp[offset] - 48) + 10000000 * (tmp[offset + 1] - 48) + 1000000 * (tmp[offset + 2] - 48) + 100000
+                    * (tmp[offset + 3] - 48) + 10000 * (tmp[offset + 4] - 48) + 1000 * (tmp[offset + 5] - 48) + 100 * (tmp[offset + 6] - 48)
+                    + 10 * (tmp[offset + 7] - 48) + tmp[offset + 8] - 48;
+        }
+    }
+
+    static class NumberConverter {
+        static int read2(final char[] buf, final int pos) {
+            final int v1 = buf[pos] - 48;
+            return (v1 << 3) + (v1 << 1) + buf[pos + 1] - 48;
+        }
+
+        static int read4(final char[] buf, final int pos) {
+            final int v2 = buf[pos + 1] - 48;
+            final int v3 = buf[pos + 2] - 48;
+            return (buf[pos] - 48) * 1000 + (v2 << 6) + (v2 << 5) + (v2 << 2) + (v3 << 3) + (v3 << 1) + buf[pos + 3] - 48;
+        }
+    }
 }

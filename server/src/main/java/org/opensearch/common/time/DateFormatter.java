@@ -47,8 +47,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-import static org.opensearch.common.time.DateFormatters.HTTP_LOGS_FORMAT_PARSER;
-import static org.opensearch.common.time.DateFormatters.SO_FORMAT_PARSER;
+import static org.opensearch.common.time.DateFormatters.FAST_ISO_DATE_FORMATTER;
+import static org.opensearch.common.time.DateFormatters.FAST_ISO_LOCAL_DATE_FORMATTER;
 
 /**
  * Base Date formatter
@@ -180,9 +180,9 @@ public interface DateFormatter {
                 throw new IllegalArgumentException("Invalid print format: " + e.getMessage(), e);
             }
         }
-        if (input.equals("fastiso8601_local")) return HTTP_LOGS_FORMAT_PARSER;
+        if (input.equals("fastiso8601_local")) return FAST_ISO_LOCAL_DATE_FORMATTER;
 
-        if (input.equals("fastiso8601")) return SO_FORMAT_PARSER;
+        if (input.equals("fastiso8601")) return FAST_ISO_DATE_FORMATTER;
         return JavaDateFormatter.combined(input, formatters, printFormatter, canCacheFormatter);
     }
 

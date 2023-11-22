@@ -10,17 +10,9 @@ package org.opensearch.benchmark.index;
 
 import com.fasterxml.jackson.core.io.doubleparser.FastDoubleParser;
 import org.openjdk.jmh.annotations.*;
-import org.opensearch.common.network.InetAddresses;
 import org.opensearch.common.time.DateFormatter;
 import org.opensearch.common.time.DateFormatters;
-import org.opensearch.common.time.FastDTParser;
-import org.opensearch.common.xcontent.json.JsonXContent;
-import org.opensearch.common.xcontent.json.JsonXContentParser;
-import org.opensearch.core.xcontent.XContentParser;
-import org.opensearch.index.mapper.DateFieldMapper;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +34,7 @@ public class DocumentParsingBenchmark {
     @Benchmark
     public void candidate() throws Exception {
         //STRICT_FORMATTER.parse(nowEpoch);
-        DateFormatters.HTTP_LOGS_FORMAT_PARSER.parse("2022-04-05 22:00:12");
+        DateFormatters.FAST_ISO_LOCAL_DATE_FORMATTER.parse("2022-04-05 22:00:12");
     }
 
     @Benchmark

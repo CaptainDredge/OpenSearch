@@ -8,16 +8,11 @@
 
 package org.opensearch.common.time;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.nio.ByteOrder;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 
 public class FastDTParser {
-
-    private static VarHandle VH_INT = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
 
     public static TemporalAccessor parse(final String inputTime) {
         int len = inputTime.length();
