@@ -46,6 +46,8 @@ public enum FormatNames {
     ISO8601(null, "iso8601"),
     FASTISO8601("fastISO8601", "fastiso8601"),
     FASTISO8601_LOCAL("fastISO8601Local", "fastiso8601_local"),
+    ISO_OFFSET_DATE_TIME("isoOffsetDateTime", "iso_offset_date_time"),
+    CHAR_DATE_TIME("charDateTime", "char_date_time"),
     BASIC_DATE("basicDate", "basic_date"),
     BASIC_DATE_TIME("basicDateTime", "basic_date_time"),
     BASIC_DATE_TIME_NO_MILLIS("basicDateTimeNoMillis", "basic_date_time_no_millis"),

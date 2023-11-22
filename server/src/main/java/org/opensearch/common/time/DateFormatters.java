@@ -1957,17 +1957,14 @@ public class DateFormatters {
             .withResolverStyle(ResolverStyle.STRICT)
     );
 
-    public static final DateFormatter ZONED_FORMAT_PARSER = new FastISODateFormatter(
-        new JavaDateFormatter(
-            "yyyy-MM-dd'T'HH:mm:ssX",
-            new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ssX")
-                .toFormatter(Locale.ROOT)
-                .withResolverStyle(ResolverStyle.STRICT)
-        ),
-        false
+    public static final DateFormatter FAST_DATE_FORMATTER = new JavaDateFormatter(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+            .toFormatter(Locale.ROOT)
+            .withResolverStyle(ResolverStyle.STRICT)
     );
 
-    public static final DateFormatter HTTP_LOGS_FORMAT_PARSER = new FastISODateFormatter(
+    public static final DateFormatter FAST_ISO_LOCAL_DATE_FORMATTER = new FastISODateFormatter(
         new JavaDateFormatter(
             "yyyy-MM-dd HH:mm:ss",
             new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd HH:mm:ss")
@@ -1977,7 +1974,7 @@ public class DateFormatters {
         true
     );
 
-    public static final DateFormatter SO_FORMAT_PARSER = new FastISODateFormatter(
+    public static final DateFormatter FAST_ISO_DATE_FORMATTER = new FastISODateFormatter(
         new JavaDateFormatter(
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
             new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
@@ -1985,6 +1982,17 @@ public class DateFormatters {
                 .withResolverStyle(ResolverStyle.STRICT)
         ),
         false
+    );
+
+    public static final DateFormatter ISO_OFFSET_DATE_FORMATTER = new JavaDateFormatter(
+        "iso_offset_date_time",
+        new CustomDateTimeFormatter(DateTimeFormatter.ISO_OFFSET_DATE),
+        new FastDateFormatter(DateTimeFormatter.ISO_OFFSET_DATE)
+    );
+    public static final DateFormatter CHAR_DATE_FORMATTER = new JavaDateFormatter(
+        "char_date_time",
+        new CustomDateTimeFormatter(DateTimeFormatter.ISO_OFFSET_DATE),
+        new CharDateParser(DateTimeFormatter.ISO_OFFSET_DATE)
     );
 
     /////////////////////////////////////////
@@ -2014,12 +2022,14 @@ public class DateFormatters {
                 );
         }
 
-        if ("yyyy-MM-dd'T'HH:mm:ssX".equals(input)) {
-            return ZONED_FORMAT_PARSER;
-        } else if (FormatNames.FASTISO8601.matches(input)) {
-            return SO_FORMAT_PARSER;
+        if (FormatNames.FASTISO8601.matches(input)) {
+            return FAST_ISO_DATE_FORMATTER;
         } else if (FormatNames.FASTISO8601_LOCAL.matches(input)) {
-            return HTTP_LOGS_FORMAT_PARSER;
+            return FAST_ISO_LOCAL_DATE_FORMATTER;
+        } else if (FormatNames.ISO_OFFSET_DATE_TIME.matches(input)) {
+            return ISO_OFFSET_DATE_FORMATTER;
+        } else if (FormatNames.CHAR_DATE_TIME.matches(input)) {
+            return CHAR_DATE_FORMATTER;
         } else if (FormatNames.ISO8601.matches(input)) {
             return ISO_8601;
         } else if (FormatNames.BASIC_DATE.matches(input)) {
