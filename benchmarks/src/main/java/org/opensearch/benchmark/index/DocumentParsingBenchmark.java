@@ -8,37 +8,56 @@
 
 package org.opensearch.benchmark.index;
 
-import com.fasterxml.jackson.core.io.doubleparser.FastDoubleParser;
-import org.openjdk.jmh.annotations.*;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.common.logging.LogConfigurator;
 import org.opensearch.common.time.DateFormatters;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 
-import java.util.Locale;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import com.ethlo.time.ITU;
+
 @Fork(3)
-@Warmup(iterations = 1)
-@Measurement(iterations = 3)
+@Warmup(iterations = 5)
+@Measurement(iterations = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Benchmark)
 @SuppressWarnings("unused") // invoked by benchmarking framework
 public class DocumentParsingBenchmark {
 
-    private String val = Double.toString(new Random().nextDouble());
+    @Setup
+    public void setup() {
+        LogConfigurator.setNodeName("test");
+    }
 
-    private static DateFormatter STRICT_FORMATTER = DateFormatter.forPattern("yyyy-MM-dd HH:mm:ss").withLocale(Locale.ROOT);
-    //private static DateFormatter FALLBACK_FORMATTER = DateFormatter.forPattern("strict_date_optional_time||epoch_millis");
+    @Param({ "2023-01-01T23:38:34.000Z", "1970-01-01T00:16:12.675Z", "5050-01-01T12:02:01.123Z", })
+    public String dateString;
+    // private static DateFormatter STRICT_FORMATTER = DateFormatter.forPattern("yyyy-MM-dd HH:mm:ss").withLocale(Locale.ROOT);
+    // private static DateFormatter FALLBACK_FORMATTER = DateFormatter.forPattern("strict_date_optional_time||epoch_millis");
 
     @Benchmark
-    public void candidate() throws Exception {
-        //STRICT_FORMATTER.parse(nowEpoch);
-        DateFormatters.FAST_ISO_LOCAL_DATE_FORMATTER.parse("2022-04-05 22:00:12");
+    public void isoOffsetDateFormatter() throws Exception {
+        // STRICT_FORMATTER.parse(nowEpoch);
+        DateFormatters.ISO_OFFSET_DATE_FORMATTER.parse(dateString);
     }
 
     @Benchmark
-    public void baseline() throws Exception {
-        STRICT_FORMATTER.parse("2022-04-05 22:00:12");
+    public void charDateFormatter() throws Exception {
+        DateFormatters.CHAR_DATE_FORMATTER.parse(dateString);
+    }
+
+    @Benchmark
+    public void benchITUParser() {
+        ITU.parseDateTime(dateString);
     }
 }
