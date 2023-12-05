@@ -141,7 +141,7 @@ public class DateFormatters {
         .toFormatter(Locale.ROOT)
         .withResolverStyle(ResolverStyle.STRICT);
 
-    private static final DateTimeFormatter STRICT_DATE_OPTIONAL_TIME_FORMATTER = new DateTimeFormatterBuilder().append(
+    public static final DateTimeFormatter STRICT_DATE_OPTIONAL_TIME_FORMATTER = new DateTimeFormatterBuilder().append(
         STRICT_YEAR_MONTH_DAY_FORMATTER
     )
         .optionalStart()
@@ -1989,6 +1989,13 @@ public class DateFormatters {
         new CustomDateTimeFormatter(DateTimeFormatter.ISO_OFFSET_DATE),
         new FastDateFormatter(DateTimeFormatter.ISO_OFFSET_DATE)
     );
+
+    public static final DateFormatter RFC3339_OFFSET_DATE_FORMATTER = new JavaDateFormatter(
+        "rfc3339_date_time",
+        new CustomDateTimeFormatter(DateTimeFormatter.ISO_OFFSET_DATE),
+        new RFC3339Parser(DateTimeFormatter.ISO_OFFSET_DATE)
+    );
+
     public static final DateFormatter CHAR_DATE_FORMATTER = new JavaDateFormatter(
         "char_date_time",
         new CustomDateTimeFormatter(DateTimeFormatter.ISO_OFFSET_DATE),
@@ -2030,6 +2037,8 @@ public class DateFormatters {
             return ISO_OFFSET_DATE_FORMATTER;
         } else if (FormatNames.CHAR_DATE_TIME.matches(input)) {
             return CHAR_DATE_FORMATTER;
+        } else if (FormatNames.RFC3339_DATE_TIME.matches(input)) {
+            return RFC3339_OFFSET_DATE_FORMATTER;
         } else if (FormatNames.ISO8601.matches(input)) {
             return ISO_8601;
         } else if (FormatNames.BASIC_DATE.matches(input)) {

@@ -25,6 +25,7 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.concurrent.TimeUnit;
 
 import com.ethlo.time.ITU;
+import org.opensearch.common.time.RFC3339Parser;
 
 @Fork(3)
 @Warmup(iterations = 5)
@@ -40,11 +41,13 @@ public class DocumentParsingBenchmark {
         LogConfigurator.setNodeName("test");
     }
 
-    @Param({ "2023-01-01T23:38:34.000Z", "1970-01-01T00:16:12.675Z", "5050-01-01T12:02:01.123Z", })
+    @Param({ "2023-01-01T23:38:34.000Z", "1970-01-01T00:16:12.675Z", "5050-01-01T12:02:01.123Z" })
     public String dateString;
-    // private static DateFormatter STRICT_FORMATTER = DateFormatter.forPattern("yyyy-MM-dd HH:mm:ss").withLocale(Locale.ROOT);
-    // private static DateFormatter FALLBACK_FORMATTER = DateFormatter.forPattern("strict_date_optional_time||epoch_millis");
 
+    @Benchmark
+    public void strictDateOptionalTimeFormatter() {
+        DateFormatters.STRICT_DATE_OPTIONAL_TIME_FORMATTER.parse(dateString);
+    }
     @Benchmark
     public void isoOffsetDateFormatter() throws Exception {
         // STRICT_FORMATTER.parse(nowEpoch);
@@ -59,5 +62,10 @@ public class DocumentParsingBenchmark {
     @Benchmark
     public void benchITUParser() {
         ITU.parseDateTime(dateString);
+    }
+
+    @Benchmark
+    public void benchRFC3339Parser() {
+        DateFormatters.RFC3339_OFFSET_DATE_FORMATTER.parse(dateString);
     }
 }
