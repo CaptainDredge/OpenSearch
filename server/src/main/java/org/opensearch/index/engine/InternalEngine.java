@@ -70,6 +70,7 @@ import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.StopWatch;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.lease.Releasable;
@@ -917,7 +918,10 @@ public class InternalEngine extends Engine {
                     assert index.seqNo() >= 0 : "ops should have an assigned seq no.; origin: " + index.origin();
 
                     if (plan.indexIntoLucene || plan.addStaleOpToLucene) {
+                        StopWatch stopWatch = new StopWatch().start();
                         indexResult = indexIntoLucene(index, plan);
+                        stopWatch.stop();
+                        logger.info("Index into Lucene took: {}", stopWatch.totalTime().getStringRep());
                     } else {
                         indexResult = new IndexResult(
                             plan.versionForIndexing,
@@ -931,7 +935,10 @@ public class InternalEngine extends Engine {
                 if (index.origin().isFromTranslog() == false) {
                     final Translog.Location location;
                     if (indexResult.getResultType() == Result.Type.SUCCESS) {
+                        StopWatch stopWatch = new StopWatch().start();
                         location = translogManager.add(new Translog.Index(index, indexResult));
+                        stopWatch.stop();
+                        logger.info("Translog add took: {}", stopWatch.totalTime().getStringRep());
                     } else if (indexResult.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) {
                         // if we have document failure, record it as a no-op in the translog and Lucene with the generated seq_no
                         final NoOp noOp = new NoOp(
