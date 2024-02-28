@@ -40,6 +40,7 @@ import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
 import org.opensearch.Version;
+import org.opensearch.common.StopWatch;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.common.lucene.index.OpenSearchDirectoryReader;
@@ -331,7 +332,7 @@ public class ReadOnlyEngine extends Engine {
     }
 
     @Override
-    public IndexResult index(Index index) {
+    public IndexResult index(Index index, StopWatch twatch, StopWatch iwatch, StopWatch markWatch) {
         assert false : "this should not be called";
         throw new UnsupportedOperationException("indexing is not supported on a read-only engine");
     }

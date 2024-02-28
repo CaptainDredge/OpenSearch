@@ -13,6 +13,7 @@ import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SoftDeletesDirectoryReaderWrapper;
 import org.apache.lucene.search.ReferenceManager;
+import org.opensearch.common.StopWatch;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.lucene.Lucene;
@@ -228,7 +229,6 @@ public class NRTReplicationEngine extends Engine {
         return false;
     }
 
-    @Override
     public IndexResult index(Index index) throws IOException {
         ensureOpen();
         IndexResult indexResult = new IndexResult(index.version(), index.primaryTerm(), index.seqNo(), false);
@@ -240,6 +240,10 @@ public class NRTReplicationEngine extends Engine {
         return indexResult;
     }
 
+    @Override
+    public IndexResult index(Index index, StopWatch twatch, StopWatch iwatch, StopWatch mwatch) throws IOException {
+        return index(index);
+    }
     @Override
     public DeleteResult delete(Delete delete) throws IOException {
         ensureOpen();
