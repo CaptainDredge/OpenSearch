@@ -194,7 +194,7 @@ public class StopWatch {
      * Return a short description of the total running time.
      */
     public String shortSummary() {
-        return "StopWatch '" + this.id + "': running time  = " + totalTime();
+        return "StopWatch '" + this.id + "': running time  = " + totalTime().nanos();
     }
 
     /**

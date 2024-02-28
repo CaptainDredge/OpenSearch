@@ -62,6 +62,7 @@ import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.SetOnce;
+import org.opensearch.common.StopWatch;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.lease.Releasable;
@@ -447,7 +448,7 @@ public abstract class Engine implements LifecycleAware, Closeable {
      *
      * Note: engine level failures (i.e. persistent engine failures) are thrown
      */
-    public abstract IndexResult index(Index index) throws IOException;
+    public abstract IndexResult index(Index index, StopWatch translogWatch, StopWatch indexWatch, StopWatch markSeqnoWatch) throws IOException;
 
     /**
      * Perform document delete operation on the engine

@@ -843,7 +843,7 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public IndexResult index(Index index) throws IOException {
+    public IndexResult index(Index index, StopWatch translogWatch, StopWatch indexWatch, StopWatch markSeqNoWatch) throws IOException {
         assert Objects.equals(index.uid().field(), IdFieldMapper.NAME) : index.uid().field();
         final boolean doThrottle = index.origin().isRecovery() == false;
         try (ReleasableLock releasableLock = readLock.acquire()) {
@@ -918,10 +918,9 @@ public class InternalEngine extends Engine {
                     assert index.seqNo() >= 0 : "ops should have an assigned seq no.; origin: " + index.origin();
 
                     if (plan.indexIntoLucene || plan.addStaleOpToLucene) {
-                        StopWatch stopWatch = new StopWatch().start();
+                        indexWatch.start();
                         indexResult = indexIntoLucene(index, plan);
-                        stopWatch.stop();
-                        logger.info("Index into Lucene took: {}", stopWatch.totalTime().getStringRep());
+                        indexWatch.stop();
                     } else {
                         indexResult = new IndexResult(
                             plan.versionForIndexing,
@@ -935,10 +934,9 @@ public class InternalEngine extends Engine {
                 if (index.origin().isFromTranslog() == false) {
                     final Translog.Location location;
                     if (indexResult.getResultType() == Result.Type.SUCCESS) {
-                        StopWatch stopWatch = new StopWatch().start();
+                        translogWatch.start();
                         location = translogManager.add(new Translog.Index(index, indexResult));
-                        stopWatch.stop();
-                        logger.info("Translog add took: {}", stopWatch.totalTime().getStringRep());
+                        translogWatch.stop();
                     } else if (indexResult.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) {
                         // if we have document failure, record it as a no-op in the translog and Lucene with the generated seq_no
                         final NoOp noOp = new NoOp(
@@ -961,7 +959,9 @@ public class InternalEngine extends Engine {
                         new IndexVersionValue(translogLocation, plan.versionForIndexing, index.seqNo(), index.primaryTerm())
                     );
                 }
+                markSeqNoWatch.start();
                 localCheckpointTracker.markSeqNoAsProcessed(indexResult.getSeqNo());
+                markSeqNoWatch.stop();
                 if (indexResult.getTranslogLocation() == null) {
                     // the op is coming from the translog (and is hence persisted already) or it does not have a sequence number
                     assert index.origin().isFromTranslog() || indexResult.getSeqNo() == SequenceNumbers.UNASSIGNED_SEQ_NO;
