@@ -918,9 +918,13 @@ public class InternalEngine extends Engine {
                     assert index.seqNo() >= 0 : "ops should have an assigned seq no.; origin: " + index.origin();
 
                     if (plan.indexIntoLucene || plan.addStaleOpToLucene) {
+                        StopWatch perDocIndexWatch = new StopWatch("per_doc_index");
+                        perDocIndexWatch.start();
                         indexWatch.start();
                         indexResult = indexIntoLucene(index, plan);
                         indexWatch.stop();
+                        perDocIndexWatch.stop();
+                        logger.info("Time to execute {}", perDocIndexWatch.shortSummary());
                     } else {
                         indexResult = new IndexResult(
                             plan.versionForIndexing,
