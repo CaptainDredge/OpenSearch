@@ -48,6 +48,7 @@ import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.StopWatch;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
@@ -1167,7 +1168,11 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
 
         @Override
         protected void runInternal() {
+            StopWatch stopWatch = new StopWatch("refresh");
+            stopWatch.start();
             indexService.maybeRefreshEngine(false);
+            stopWatch.stop();
+            logger.info("Time to execute {}", stopWatch.shortSummary());
         }
 
         @Override
