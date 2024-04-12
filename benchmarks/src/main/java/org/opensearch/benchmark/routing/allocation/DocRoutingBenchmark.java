@@ -24,6 +24,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import org.opensearch.common.util.Murmur3HashFunction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,8 +89,8 @@ public class DocRoutingBenchmark {
     private static class IndexWithRecurringRouting {
         private final List<Integer> docs = new ArrayList<>(0);
         private final HashMap<Integer, List<Document>> inMemoryFileStore = new HashMap<>();
-        private final Map<Integer, Partition> metaData = new HashMap<>();
-        private final List<List<Integer>> routingTable = new ArrayList<>(0);
+        private final Partition[] metaData = Collections.nCopies(1024, null).toArray(Partition[]::new);
+        private final int[][] routingTable = new int[1024][2];
         private final int numPrimaryShard;
         private final int routingFactor;
         private final int routingShard;
@@ -101,8 +102,12 @@ public class DocRoutingBenchmark {
 
             for (int i = 0; i < numPrimaryShard; ++i) {
                 docs.add(0);
-                routingTable.add(new ArrayList<>(0));
+//                routingTable.add(new ArrayList<>(0));
             }
+
+            for(int i=0; i<1024; i++)
+                for(int j=0; j<2; j++)
+                    routingTable[i][j] = -1; // initialize routing table
         }
 
         void split(final int shardId, int numShards) throws Exception {
@@ -111,8 +116,9 @@ public class DocRoutingBenchmark {
 
             for (int i = 0; i < numShards; ++i) {
                 docs.add(0);
-                routingTable.add(new ArrayList<>(0));
-                routingTable.get(shardId).add(++maxShardNum);
+                //routingTable.add(new ArrayList<>(0));
+                //routingTable.get(shardId).add(++maxShardNum);
+                routingTable[shardId][i] = ++maxShardNum;
             }
 
             if (shardId >= this.numPrimaryShard) {
@@ -123,8 +129,8 @@ public class DocRoutingBenchmark {
                 routingFactor = this.routingFactor;
             }
 
-            metaData.put(shardId, new Partition(routingFactor, numShards));
-            recoverDocs(shardId);  // recover the docs from split shard
+            metaData[shardId] = new Partition(routingFactor, numShards);
+            //recoverDocs(shardId);  // recover the docs from split shard
         }
 
         void recoverDocs(final int shardId) {
@@ -151,8 +157,9 @@ public class DocRoutingBenchmark {
             int shardId = Math.floorMod(hash, this.routingShard) / this.routingFactor;
 
             while (isPartition(shardId)) {
-                final Partition p = metaData.get(shardId);
-                shardId = routingTable.get(shardId).get(Math.floorMod(hash, p.routingShard) / p.routingFactor);
+                final Partition p = metaData[shardId];
+//                shardId = routingTable.get(shardId).get(Math.floorMod(hash, p.routingShard) / p.routingFactor);
+                shardId = routingTable[shardId][(Math.floorMod(hash, p.routingShard) / p.routingFactor)];
             }
 
             docs.set(shardId, docs.get(shardId) + 1);
@@ -161,13 +168,13 @@ public class DocRoutingBenchmark {
 
         void routeDoc(Document doc) {
             final int shardId = route(doc.getDocId(), true);
-            if(inMemoryFileStore.containsKey(shardId)) {
-                inMemoryFileStore.get(shardId).add(doc);
-            } else {
-                List<Document> docs = new ArrayList<>();
-                docs.add(doc);
-                inMemoryFileStore.put(shardId, docs);
-            }
+//            if(inMemoryFileStore.containsKey(shardId)) {
+//                inMemoryFileStore.get(shardId).add(doc);
+//            } else {
+//                List<Document> docs = new ArrayList<>();
+//                docs.add(doc);
+//                inMemoryFileStore.put(shardId, docs);
+//            }
         }
 
         Document getDoc(int docId) {
@@ -177,18 +184,27 @@ public class DocRoutingBenchmark {
         }
 
         private boolean isPartition(int idx) {
-            return !routingTable.get(idx).isEmpty();
+//            return !routingTable.get(idx).isEmpty();
+            return routingTable[idx][0] != -1;
         }
 
         private Partition findParent(int shardId) throws Exception {
-            for (int i = 0; i < routingTable.size(); ++i) {
-                for (int j = 0; j < routingTable.get(i).size(); ++j) {
-                    if (routingTable.get(i).get(j) == shardId) {
-                        return metaData.get(i);
+            int maxShardNum = docs.size() - 1;
+//            for (int i = 0; i < routingTable.size(); ++i) {
+//                for (int j = 0; j < routingTable.get(i).size(); ++j) {
+//                    if (routingTable.get(i).get(j) == shardId) {
+//                        return metaData.get(i);
+//                    }
+//                }
+//            }
+
+            for(int i=0; i<=maxShardNum; i++) {
+                for(int j=0; j<2; j++) {
+                    if(routingTable[i][j] == shardId) {
+                        return metaData[i];
                     }
                 }
             }
-
             throw new Exception("Parent not found!");
         }
 
@@ -233,8 +249,12 @@ public class DocRoutingBenchmark {
                 e.printStackTrace();
             }
 
-            for(int childIds : index.routingTable.get(shardId)) {
-                recursiveSplit(index, childIds, numSplits-1);
+//            for(int childIds : index.routingTable.get(shardId)) {
+//                recursiveSplit(index, childIds, numSplits-1);
+//            }
+            int[] childIds = index.routingTable[shardId];
+            for(int childId : childIds) {
+                recursiveSplit(index, childId, numSplits-1);
             }
         }
     }
