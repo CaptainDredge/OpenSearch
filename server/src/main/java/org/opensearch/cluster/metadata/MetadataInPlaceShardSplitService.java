@@ -29,8 +29,6 @@ import org.opensearch.index.shard.ShardNotFoundException;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.ShardLimitValidator;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.BiFunction;
 
 public class MetadataInPlaceShardSplitService {
@@ -135,15 +133,9 @@ public class MetadataInPlaceShardSplitService {
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder(currentState.routingTable());
         Metadata.Builder metadataBuilder = Metadata.builder(currentState.metadata());
         IndexMetadata.Builder indexMetadataBuilder = IndexMetadata.builder(curIndexMetadata);
-        int newShardId = curIndexMetadata.getNumberOfShards();
-        Set<Integer> childShardIds = new HashSet<>();
-        for (int shardId = newShardId; shardId < newShardId + request.getSplitInto(); shardId++) {
-            childShardIds.add(shardId);
-        }
-        indexMetadataBuilder.putParentShard(sourceShardId.id(), childShardIds);
+        indexMetadataBuilder.initializeSplitShard(curIndexMetadata.getNumberOfShards(),curIndexMetadata.getParentShard(sourceShardId), request.getSplitInto());
         RoutingTable routingTable = routingTableBuilder.build();
         metadataBuilder.put(indexMetadataBuilder);
-
         ClusterState updatedState = ClusterState.builder(currentState).metadata(metadataBuilder).routingTable(routingTable).build();
         return rerouteRoutingTable.apply(updatedState, "shard [" + request.getShardId() + "] of index [" + request.getIndex() + "] split");
     }

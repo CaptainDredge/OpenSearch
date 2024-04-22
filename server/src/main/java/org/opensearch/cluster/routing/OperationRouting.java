@@ -34,6 +34,7 @@ package org.opensearch.cluster.routing;
 
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.cluster.metadata.SplitPartition;
 import org.opensearch.cluster.metadata.WeightedRoutingMetadata;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.allocation.decider.AwarenessAllocationDecider;
@@ -470,12 +471,30 @@ public class OperationRouting {
         return calculateScaledShardId(indexMetadata, effectiveRouting, partitionOffset);
     }
 
+    /**
+     * Calculates the shard ID based on the provided index metadata, effective routing, and partition offset.
+     * The shard ID is calculated by hashing the effective routing and adding the partition offset.
+     * The result is then scaled based on the number of routing shards and the routing factor of the index.
+     * If the shard is split, the shard ID is recalculated based on the child shards of the split partition.
+     *
+     * @param indexMetadata The metadata of the index.
+     * @param effectiveRouting The effective routing value.
+     * @param partitionOffset The partition offset.
+     * @return The calculated shard ID.
+     */
     private static int calculateScaledShardId(IndexMetadata indexMetadata, String effectiveRouting, int partitionOffset) {
-        final int hash = Murmur3HashFunction.hash(effectiveRouting) + partitionOffset;
+        final int hash = Murmur3HashFunction.hash(effectiveRouting) + partitionOffset; // hash_value = hash(_routing) + offset
 
+        int shardId = Math.floorMod(hash, indexMetadata.getRoutingNumShards()) / indexMetadata.getRoutingFactor(); // id = (hash_value % routing_shards) / routing_factor
+
+
+        while (indexMetadata.isSplitPartition(shardId)) {
+            final SplitPartition p = indexMetadata.getPartition(shardId);
+            shardId = p.getChildShards().get(Math.floorMod(hash, p.getRoutingShard() / p.getRoutingFactor()));
+        }
         // we don't use IMD#getNumberOfShards since the index might have been shrunk such that we need to use the size
         // of original index to hash documents
-        return Math.floorMod(hash, indexMetadata.getRoutingNumShards()) / indexMetadata.getRoutingFactor();
+        return shardId;
     }
 
     private void checkPreferenceBasedRoutingAllowed(Preference preference, @Nullable WeightedRoutingMetadata weightedRoutingMetadata) {
