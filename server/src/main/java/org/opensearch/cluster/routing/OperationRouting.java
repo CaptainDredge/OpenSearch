@@ -34,7 +34,7 @@ package org.opensearch.cluster.routing;
 
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.cluster.metadata.SplitMetadata;
+import org.opensearch.cluster.metadata.SplitShardRange;
 import org.opensearch.cluster.metadata.WeightedRoutingMetadata;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.allocation.decider.AwarenessAllocationDecider;
@@ -485,16 +485,23 @@ public class OperationRouting {
                                                Predicate<Integer> canIncludeChildShardIds) {
         final int hash = Murmur3HashFunction.hash(effectiveRouting) + partitionOffset;
         int shardId = Math.floorMod(hash, indexMetadata.getRoutingNumShards()) / indexMetadata.getRoutingFactor();
+        final int rangeHash = Math.floorMod(hash, Integer.MAX_VALUE);
 
-        while (indexMetadata.isParentShard(shardId) && canIncludeChildShardIds.test(shardId)) {
-            final SplitMetadata splitMetadata = indexMetadata.getSplitMetadata(shardId);
-            int childShardIdx = Math.floorMod(hash, splitMetadata.getRoutingNumShards()) / splitMetadata.getRoutingFactor();
-            shardId = splitMetadata.getChildShardIdAtIndex(childShardIdx);
+        if(indexMetadata.isParentShard(shardId) == false) {
+            return shardId;
+        }
+        SplitShardRange shardRange = indexMetadata.getPrimaryShardRanges(shardId).floor(new SplitShardRange(rangeHash, shardId));
+
+        if(shardRange == null || !shardRange.contains(rangeHash)) {
+            throw new IllegalArgumentException("Invalid shard range for shardId: " + shardId + " and rangeHash: " + rangeHash);
         }
 
+        if(canIncludeChildShardIds.test(shardId)) {
+            return shardRange.getChildRanges().floor(new SplitShardRange(rangeHash, shardId)).getShardId();
+        }
         // we don't use IMD#getNumberOfShards since the index might have been shrunk such that we need to use the size
         // of original index to hash documents
-        return shardId;
+        return shardRange.getShardId();
     }
 
     private void checkPreferenceBasedRoutingAllowed(Preference preference, @Nullable WeightedRoutingMetadata weightedRoutingMetadata) {
