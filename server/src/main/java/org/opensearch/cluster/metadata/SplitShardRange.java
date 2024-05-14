@@ -39,8 +39,14 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
         this.max = max;
     }
 
+    public SplitShardRange(int shardId, int primaryShardId, int min) {
+        this.shardId = shardId;
+        this.primaryShardId = primaryShardId;
+        this.min = min;
+        this.max = Integer.MAX_VALUE;
+    }
     public SplitShardRange(int shardId, int primaryShardId) {
-        this(shardId, primaryShardId, 0, Integer.MAX_VALUE);
+        this(shardId, primaryShardId, 0);
     }
 
     public SplitShardRange(StreamInput in) throws IOException {
@@ -116,16 +122,16 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
     }
 
     public void toXContent(XContentBuilder builder) throws IOException {
-        builder.startObject();
+        builder.startObject("range");
         builder.field("shard_id", shardId);
         builder.field("primary_shard_id", primaryShardId);
         builder.field("min", min);
         builder.field("max", max);
-        builder.startArray("child_ranges");
+        builder.startObject("child_ranges");
         for (SplitShardRange range : childRanges) {
             range.toXContent(builder);
         }
-        builder.endArray();
+        builder.endObject();
         builder.endObject();
     }
 
@@ -151,8 +157,10 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
                 } else if ("max".equals(fieldName)) {
                     max = parser.intValue();
                 } else if ("child_ranges".equals(fieldName)) {
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        childRanges.add(parse(parser));
+                    while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+                        if (token == XContentParser.Token.START_OBJECT) {
+                            childRanges.add(parse(parser));
+                        }
                     }
                 }
             }

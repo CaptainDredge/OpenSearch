@@ -490,13 +490,13 @@ public class OperationRouting {
         if(indexMetadata.isParentShard(shardId) == false) {
             return shardId;
         }
-        SplitShardRange shardRange = indexMetadata.getPrimaryShardRanges(shardId).floor(new SplitShardRange(rangeHash, shardId));
+        SplitShardRange shardRange = indexMetadata.getPrimaryShardRanges(shardId).floor(new SplitShardRange(shardId, shardId, rangeHash));
 
         if(shardRange == null || !shardRange.contains(rangeHash)) {
             throw new IllegalArgumentException("Invalid shard range for shardId: " + shardId + " and rangeHash: " + rangeHash);
         }
 
-        if(canIncludeChildShardIds.test(shardId)) {
+        if(canIncludeChildShardIds.test(shardId) && shardRange.getChildRanges().size() > 0) {
             return shardRange.getChildRanges().floor(new SplitShardRange(rangeHash, shardId)).getShardId();
         }
         // we don't use IMD#getNumberOfShards since the index might have been shrunk such that we need to use the size

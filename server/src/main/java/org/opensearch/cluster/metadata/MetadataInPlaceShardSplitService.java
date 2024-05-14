@@ -147,7 +147,7 @@ public class MetadataInPlaceShardSplitService {
         if(shardId < indexMetadataBuilder.numberOfShards()) {
             primaryShardId = shardId;
             TreeSet<SplitShardRange> ranges = curIndexMetadata.getPrimaryShardRanges(primaryShardId);
-            SplitShardRange fullRange = new SplitShardRange(primaryShardId, -1);
+            SplitShardRange fullRange = new SplitShardRange(primaryShardId, primaryShardId);
             fullRange.splitRange(request.getSplitInto(), maxUsedShardId);
             ranges.clear();
             ranges.add(fullRange);

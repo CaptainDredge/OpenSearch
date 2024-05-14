@@ -640,6 +640,7 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
     static final String KEY_SERVING_SHARD_IDS = "serving_shard_ids";
     static final String KEY_NUM_OF_NON_SERVING_SHARDS = "num_of_non_serving_shards";
     static final String SPLIT_SHARD_RANGES = "split_shard_ranges";
+    static final String PRIMARY_SHARD_RANGES = "primary_shard_ranges";
     public static final String KEY_PRIMARY_TERMS = "primary_terms";
 
     public static final String INDEX_STATE_FILE_PREFIX = "state-";
@@ -932,7 +933,7 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
     }
 
     public boolean isParentShard(Integer shardId) {
-        return shardRanges.containsKey(shardId);
+        return shardRanges.containsKey(shardId) && shardRanges.get(shardId).getChildShardIds().size() > 0;
     }
 
     public boolean isNonServingShard(Integer shardId) {
@@ -1294,6 +1295,17 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             for(int i=0; i < shardRangesSize; i++) {
                 builder.putShardRange(new SplitShardRange(in));
             }
+
+            int primaryShardRangesSize = in.readVInt();
+            for(int i=0; i < primaryShardRangesSize; i++) {
+                int shardId = in.readInt();
+                int primaryShardRangesCount = in.readVInt();
+                TreeSet<SplitShardRange> primaryShardRanges = new TreeSet<>();
+                for(int j=0; j < primaryShardRangesCount; j++) {
+                    primaryShardRanges.add(new SplitShardRange(in));
+                }
+                builder.putPrimaryShardRanges(shardId, primaryShardRanges);
+            }
             builder.servingShardIds(in.readVIntArray());
             builder.numberOfNonServingShards(in.readVInt());
         }
@@ -1342,6 +1354,14 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             out.writeVInt(shardRanges.size());
             for(final SplitShardRange splitRange : shardRanges.values()) {
                 splitRange.writeTo(out);
+            }
+            out.writeVInt(primaryShardRanges.size());
+            for (final Map.Entry<Integer, TreeSet<SplitShardRange>> cursor : primaryShardRanges.entrySet()) {
+                out.writeInt(cursor.getKey());
+                out.writeVInt(cursor.getValue().size());
+                for (final SplitShardRange splitRange : cursor.getValue()) {
+                    splitRange.writeTo(out);
+                }
             }
             out.writeVIntArray(servingShardIds);
             out.writeVInt(numberOfNonServingShards);
@@ -1510,12 +1530,13 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             // Remove in-sync allocations of parent
             this.inSyncAllocationIds.remove(sourceShardId);
 
-            // Add child shard ranges
-            for(SplitShardRange childRange: this.shardRanges.get(sourceShardId).getChildRanges()) {
-                this.primaryShardRanges.computeIfAbsent(childRange.getPrimaryShardId(), k -> new TreeSet<>()).add(childRange);
-            }
             // Remove parent shard range
             this.primaryShardRanges.get(this.shardRanges.get(sourceShardId).getPrimaryShardId()).remove(this.shardRanges.get(sourceShardId));
+
+            // Add child shard ranges
+            for(SplitShardRange childRange: this.shardRanges.get(sourceShardId).getChildRanges()) {
+                this.primaryShardRanges.get(childRange.getPrimaryShardId()).add(childRange);
+            }
             // Clear child shard ranges
             this.shardRanges.get(sourceShardId).getChildRanges().clear();
 
@@ -1630,6 +1651,11 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             return this;
         }
 
+        public Builder putPrimaryShardRanges(int shardId, TreeSet<SplitShardRange> primaryShardRanges) {
+            this.primaryShardRanges.put(shardId, primaryShardRanges);
+            return this;
+        }
+
         public long version() {
             return this.version;
         }
@@ -1727,6 +1753,13 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
                 servingShardIds = new int[numberOfSeedShards];
                 for (int i=0; i < numberOfSeedShards; i++) {
                     servingShardIds[i] = i;
+                }
+            }
+            if (shardRanges.isEmpty()) {
+                for (int i=0; i<numberOfSeedShards; i++) {
+                    SplitShardRange primaryRange = new SplitShardRange(i, i);
+                    this.shardRanges.put(i, primaryRange);
+                    this.primaryShardRanges.put(i, new TreeSet<>(List.of(primaryRange)));
                 }
             }
 
@@ -1953,6 +1986,17 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
                 cursor.toXContent(builder);
             }
             builder.endObject();
+
+            builder.startObject(PRIMARY_SHARD_RANGES);
+            for (final Map.Entry<Integer, TreeSet<SplitShardRange>> cursor : indexMetadata.primaryShardRanges.entrySet()) {
+                builder.startObject(String.valueOf(cursor.getKey()));
+                for (final SplitShardRange range : cursor.getValue()) {
+                    range.toXContent(builder);
+                }
+                builder.endObject();
+            }
+            builder.endObject();
+
             builder.startArray(KEY_SERVING_SHARD_IDS);
             for (final int cursor : indexMetadata.servingShardIds) {
                 builder.value(cursor);
@@ -2049,6 +2093,27 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
                                 currentFieldName = parser.currentName();
                             } else if (token == XContentParser.Token.START_OBJECT) {
                                 builder.putShardRange(SplitShardRange.parse(parser));
+                            } else {
+                                throw new IllegalArgumentException("Unexpected token: " + token);
+                            }
+                        }
+                    } else if (PRIMARY_SHARD_RANGES.equals(currentFieldName)) {
+                        while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+                            if (token == XContentParser.Token.FIELD_NAME) {
+                                currentFieldName = parser.currentName();
+                            } else if (token == XContentParser.Token.START_OBJECT) {
+                                int shardId = Integer.parseInt(currentFieldName);
+                                TreeSet<SplitShardRange> primaryShardRanges = new TreeSet<>();
+                                while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+                                    if (token == XContentParser.Token.FIELD_NAME) {
+                                        currentFieldName = parser.currentName();
+                                    } else if (token == XContentParser.Token.START_OBJECT) {
+                                        primaryShardRanges.add(SplitShardRange.parse(parser));
+                                    } else {
+                                        throw new IllegalArgumentException("Unexpected token: " + token);
+                                    }
+                                }
+                                builder.putPrimaryShardRanges(shardId, primaryShardRanges);
                             } else {
                                 throw new IllegalArgumentException("Unexpected token: " + token);
                             }
