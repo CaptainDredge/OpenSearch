@@ -38,10 +38,7 @@ public class SplitMetadata {
     }
 
     public SplitShardMetadata getSplitShardMetadata(int shardId) {
-        if(shardIdToRangeMap.containsKey(shardId)) {
-            return shardIdToRangeMap.get(shardId);
-        }
-        return new SplitShardMetadata(shardId, shardId);
+        return shardIdToRangeMap.getOrDefault(shardId, new SplitShardMetadata(shardId, shardId));
     }
 
     public void putSplitShardMetadata(SplitShardMetadata splitShardMetadata) {
@@ -50,6 +47,16 @@ public class SplitMetadata {
 
     public void putSplitSeedShardMetadata(int shardId, TreeSet<SplitShardMetadata> splitShardMetadata) {
         shardRanges.put(shardId, splitShardMetadata);
+    }
+
+    public void putSplitSeedShardMetadata(SplitShardMetadata splitShardMetadata) {
+        if (shardRanges.containsKey(splitShardMetadata.getPrimaryShardId())) {
+            shardRanges.get(splitShardMetadata.getPrimaryShardId()).add(splitShardMetadata);
+        } else {
+            TreeSet<SplitShardMetadata> splitSeedShardMetadata = new TreeSet<>();
+            splitSeedShardMetadata.add(splitShardMetadata);
+            shardRanges.put(splitShardMetadata.getPrimaryShardId(), splitSeedShardMetadata);
+        }
     }
 
     public SplitShardMetadata findShardRange(int shardId, int hash) {
@@ -73,7 +80,7 @@ public class SplitMetadata {
         for(SplitShardMetadata childRange: sourceShardRange.getEphemeralChildShardMetadata()) {
             this.shardRanges.get(childRange.getPrimaryShardId()).add(childRange);
         }
-        // Clear child shard ranges Todo: Ephemeral explaination
+        // Clear child shard ranges
         sourceShardRange.getEphemeralChildShardMetadata().clear();
     }
 

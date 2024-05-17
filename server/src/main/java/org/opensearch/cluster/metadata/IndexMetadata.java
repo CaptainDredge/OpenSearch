@@ -1611,6 +1611,10 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             return this;
         }
 
+        public Builder putSplitSeedShardMetadata(SplitShardMetadata splitShardMetadata) {
+            this.splitMetadata.putSplitSeedShardMetadata(splitShardMetadata);
+            return this;
+        }
         public long version() {
             return this.version;
         }

@@ -492,7 +492,7 @@ public class OperationRouting {
         }
         SplitShardMetadata shardRange = indexMetadata.findShardRange(shardId, rangeHash);
 
-        assert(shardRange == null || !shardRange.contains(rangeHash));
+        assert(shardRange != null || !shardRange.contains(rangeHash));
 
         if(canIncludeChildShardIds.test(shardId) && shardRange.getEphemeralChildShardMetadata().size() > 0) {
             return shardRange.findChildShardRange(rangeHash).getShardId();

@@ -138,7 +138,8 @@ public class MetadataInPlaceShardSplitService {
 
         SplitShardMetadata splitShardMetadata = curIndexMetadata.getSplitShardMetadata(sourceShardId.id());
         splitShardMetadata.splitRange(request.getSplitInto(), maxUsedShardId);
-
+        indexMetadataBuilder.putSplitShardMetadata(splitShardMetadata);
+        indexMetadataBuilder.putSplitSeedShardMetadata(splitShardMetadata);
         for(SplitShardMetadata range: splitShardMetadata.getEphemeralChildShardMetadata()) {
             indexMetadataBuilder.putSplitShardMetadata(range);
         }
