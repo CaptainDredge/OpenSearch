@@ -34,7 +34,7 @@ package org.opensearch.cluster.routing;
 
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.cluster.metadata.SplitShardRange;
+import org.opensearch.cluster.metadata.SplitShardMetadata;
 import org.opensearch.cluster.metadata.WeightedRoutingMetadata;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.allocation.decider.AwarenessAllocationDecider;
@@ -485,19 +485,17 @@ public class OperationRouting {
                                                Predicate<Integer> canIncludeChildShardIds) {
         final int hash = Murmur3HashFunction.hash(effectiveRouting) + partitionOffset;
         int shardId = Math.floorMod(hash, indexMetadata.getRoutingNumShards()) / indexMetadata.getRoutingFactor();
-        final int rangeHash = Math.floorMod(hash, Integer.MAX_VALUE);
+        final int rangeHash = hash == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(hash);
 
         if(indexMetadata.isParentShard(shardId) == false) {
             return shardId;
         }
-        SplitShardRange shardRange = indexMetadata.getPrimaryShardRanges(shardId).floor(new SplitShardRange(shardId, shardId, rangeHash));
+        SplitShardMetadata shardRange = indexMetadata.findShardRange(shardId, rangeHash);
 
-        if(shardRange == null || !shardRange.contains(rangeHash)) {
-            throw new IllegalArgumentException("Invalid shard range for shardId: " + shardId + " and rangeHash: " + rangeHash);
-        }
+        assert(shardRange == null || !shardRange.contains(rangeHash));
 
-        if(canIncludeChildShardIds.test(shardId) && shardRange.getChildRanges().size() > 0) {
-            return shardRange.getChildRanges().floor(new SplitShardRange(rangeHash, shardId)).getShardId();
+        if(canIncludeChildShardIds.test(shardId) && shardRange.getEphemeralChildShardMetadata().size() > 0) {
+            return shardRange.findChildShardRange(rangeHash).getShardId();
         }
         // we don't use IMD#getNumberOfShards since the index might have been shrunk such that we need to use the size
         // of original index to hash documents

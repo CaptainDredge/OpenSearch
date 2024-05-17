@@ -408,7 +408,7 @@ public class IndexMetadataUpdater extends RoutingChangesObserver.AbstractRouting
         if (indexMetadataBuilder == null) {
             indexMetadataBuilder = IndexMetadata.builder(oldIndexMetadata);
         }
-        return indexMetadataBuilder.removeSplitShardRanges(parentShardId.id());
+        return indexMetadataBuilder.removeSplitMetadata(parentShardId.id());
     }
 
     /**

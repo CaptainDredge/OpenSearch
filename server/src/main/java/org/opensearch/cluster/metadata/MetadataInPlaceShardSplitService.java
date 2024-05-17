@@ -29,13 +29,6 @@ import org.opensearch.index.shard.ShardNotFoundException;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.ShardLimitValidator;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.BiFunction;
 
 public class MetadataInPlaceShardSplitService {
@@ -142,23 +135,12 @@ public class MetadataInPlaceShardSplitService {
         IndexMetadata.Builder indexMetadataBuilder = IndexMetadata.builder(curIndexMetadata);
 
         int maxUsedShardId = curIndexMetadata.getNumberOfServingShards() + curIndexMetadata.getNumOfNonServingShards() - 1;
-        int primaryShardId;
-        int shardId = sourceShardId.id();
-        if(shardId < indexMetadataBuilder.numberOfShards()) {
-            primaryShardId = shardId;
-            TreeSet<SplitShardRange> ranges = curIndexMetadata.getPrimaryShardRanges(primaryShardId);
-            SplitShardRange fullRange = new SplitShardRange(primaryShardId, primaryShardId);
-            fullRange.splitRange(request.getSplitInto(), maxUsedShardId);
-            ranges.clear();
-            ranges.add(fullRange);
-            indexMetadataBuilder.putShardRange(primaryShardId, fullRange);
-        } else {
-            SplitShardRange splitShardRange = curIndexMetadata.getShardRange(shardId);
-            splitShardRange.splitRange(request.getSplitInto(), maxUsedShardId);
 
-            for(SplitShardRange range: splitShardRange.getChildRanges()) {
-                indexMetadataBuilder.putShardRange(range.getShardId(), range);
-            }
+        SplitShardMetadata splitShardMetadata = curIndexMetadata.getSplitShardMetadata(sourceShardId.id());
+        splitShardMetadata.splitRange(request.getSplitInto(), maxUsedShardId);
+
+        for(SplitShardMetadata range: splitShardMetadata.getEphemeralChildShardMetadata()) {
+            indexMetadataBuilder.putSplitShardMetadata(range);
         }
 
         RoutingTable routingTable = routingTableBuilder.build();

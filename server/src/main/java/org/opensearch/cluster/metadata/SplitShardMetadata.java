@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
 
-public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implements Comparable<SplitShardRange> {
+public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  implements Comparable<SplitShardMetadata> {
 
     private final int primaryShardId;
     private final int shardId;
@@ -28,35 +28,35 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
     private final int min;
     private final int max;
 
-    private final TreeSet<SplitShardRange> childRanges = new TreeSet<>();
+    private final TreeSet<SplitShardMetadata> ephemeralChildShardMetadata = new TreeSet<>();
 
     List<Integer>childShardIds = new ArrayList<>();
 
-    public SplitShardRange(int shardId, int primaryShardId, int min, int max) {
+    public SplitShardMetadata(int shardId, int primaryShardId, int min, int max) {
         this.shardId = shardId;
         this.primaryShardId = primaryShardId;
         this.min = min;
         this.max = max;
     }
 
-    public SplitShardRange(int shardId, int primaryShardId, int min) {
+    public SplitShardMetadata(int shardId, int primaryShardId, int min) {
         this.shardId = shardId;
         this.primaryShardId = primaryShardId;
         this.min = min;
         this.max = Integer.MAX_VALUE;
     }
-    public SplitShardRange(int shardId, int primaryShardId) {
+    public SplitShardMetadata(int shardId, int primaryShardId) {
         this(shardId, primaryShardId, 0);
     }
 
-    public SplitShardRange(StreamInput in) throws IOException {
+    public SplitShardMetadata(StreamInput in) throws IOException {
         shardId = in.readVInt();
         primaryShardId = in.readVInt();
         min = in.readVInt();
         max = in.readVInt();
         int numChildRanges = in.readVInt();
         for (int i = 0; i < numChildRanges; i++) {
-            childRanges.add(new SplitShardRange(in));
+            ephemeralChildShardMetadata.add(new SplitShardMetadata(in));
         }
     }
 
@@ -68,45 +68,48 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
         return primaryShardId;
     }
 
-    public TreeSet<SplitShardRange> getChildRanges() {
-        return childRanges;
+    public TreeSet<SplitShardMetadata> getEphemeralChildShardMetadata() {
+        return ephemeralChildShardMetadata;
     }
 
     public List<Integer> getChildShardIds() {
         return childShardIds;
     }
 
-    private void addChild(SplitShardRange range) {
-        childRanges.add(range);
+    private void addChild(SplitShardMetadata range) {
+        ephemeralChildShardMetadata.add(range);
         childShardIds.add(range.getShardId());
     }
 
+    public SplitShardMetadata findChildShardRange(int hash) {
+        return ephemeralChildShardMetadata.floor(new SplitShardMetadata(shardId, shardId, hash));
+    }
     public boolean contains(int hash) {
         return hash >= min && hash <= max;
     }
 
     @Override
-    public int compareTo(SplitShardRange o) {
+    public int compareTo(SplitShardMetadata o) {
         return Integer.compare(min, o.min);
     }
 
-    public void splitRange(int numShards, int maxShardId) {
-        int rangeSize = (max - min) / numShards;
+    public void splitRange(int numOfSplits, int maxShardId) {
+        int rangeSize = (max - min) / numOfSplits;
 
-        if(rangeSize <= 0) {
+        if(rangeSize <= 1000) {
             throw new IllegalArgumentException("Cannot split further");
         }
         int start = min;
-        for (int i = 0; i < numShards; ++i) {
-            int end = i == numShards - 1 ? max : start + rangeSize;
-            SplitShardRange child = new SplitShardRange(++maxShardId, primaryShardId, start, end);
+        for (int i = 0; i < numOfSplits; ++i) {
+            int end = i == numOfSplits - 1 ? max : start + rangeSize;
+            SplitShardMetadata child = new SplitShardMetadata(++maxShardId, primaryShardId, start, end);
             addChild(child);
             start = end + 1;
         }
     }
 
-    public static Diff<SplitShardRange> readDiffFrom(StreamInput in) throws IOException {
-        return readDiffFrom(SplitShardRange::new, in);
+    public static Diff<SplitShardMetadata> readDiffFrom(StreamInput in) throws IOException {
+        return readDiffFrom(SplitShardMetadata::new, in);
     }
 
     @Override
@@ -115,8 +118,8 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
         out.writeVInt(primaryShardId);
         out.writeVInt(min);
         out.writeVInt(max);
-        out.writeVInt(childRanges.size());
-        for (SplitShardRange range : childRanges) {
+        out.writeVInt(ephemeralChildShardMetadata.size());
+        for (SplitShardMetadata range : ephemeralChildShardMetadata) {
             range.writeTo(out);
         }
     }
@@ -127,15 +130,15 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
         builder.field("primary_shard_id", primaryShardId);
         builder.field("min", min);
         builder.field("max", max);
-        builder.startObject("child_ranges");
-        for (SplitShardRange range : childRanges) {
+        builder.startObject("child_shard_metadata");
+        for (SplitShardMetadata range : ephemeralChildShardMetadata) {
             range.toXContent(builder);
         }
         builder.endObject();
         builder.endObject();
     }
 
-    public static SplitShardRange parse(XContentParser parser) throws IOException {
+    public static SplitShardMetadata parse(XContentParser parser) throws IOException {
         XContentParser.Token token = parser.currentToken();
         if (token != XContentParser.Token.START_OBJECT) {
             throw new IllegalArgumentException("Expected START_OBJECT token but got " + token);
@@ -144,7 +147,7 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
         int primaryShardId = -1;
         int min = -1;
         int max = -1;
-        List<SplitShardRange> childRanges = new ArrayList<>();
+        List<SplitShardMetadata> childRanges = new ArrayList<>();
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
                 String fieldName = parser.currentName();
@@ -156,7 +159,7 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
                     min = parser.intValue();
                 } else if ("max".equals(fieldName)) {
                     max = parser.intValue();
-                } else if ("child_ranges".equals(fieldName)) {
+                } else if ("child_shard_metadata".equals(fieldName)) {
                     while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
                         if (token == XContentParser.Token.START_OBJECT) {
                             childRanges.add(parse(parser));
@@ -165,8 +168,8 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
                 }
             }
         }
-        SplitShardRange range = new SplitShardRange(shardId, primaryShardId, min, max);
-        for (SplitShardRange child : childRanges) {
+        SplitShardMetadata range = new SplitShardMetadata(shardId, primaryShardId, min, max);
+        for (SplitShardMetadata child : childRanges) {
             range.addChild(child);
         }
         return range;
@@ -175,14 +178,14 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof SplitShardRange)) return false;
-        SplitShardRange that = (SplitShardRange) o;
+        if (!(o instanceof SplitShardMetadata)) return false;
+        SplitShardMetadata that = (SplitShardMetadata) o;
 
         return shardId == that.shardId &&
             primaryShardId == that.primaryShardId &&
             min == that.min &&
             max == that.max &&
-            childRanges.equals(that.childRanges);
+            ephemeralChildShardMetadata.equals(that.ephemeralChildShardMetadata);
     }
 
     @Override
@@ -191,7 +194,7 @@ public class SplitShardRange extends AbstractDiffable<SplitShardRange>  implemen
         result = 31 * result + primaryShardId;
         result = 31 * result + min;
         result = 31 * result + max;
-        result = 31 * result + childRanges.hashCode();
+        result = 31 * result + ephemeralChildShardMetadata.hashCode();
         return result;
     }
 }
