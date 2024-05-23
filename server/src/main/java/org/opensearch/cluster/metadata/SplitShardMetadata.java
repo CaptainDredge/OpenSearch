@@ -22,7 +22,7 @@ import java.util.TreeSet;
 
 public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  implements Comparable<SplitShardMetadata> {
 
-    private final int primaryShardId;
+    private final int seedShardId;
     private final int shardId;
 
     private final int min;
@@ -32,26 +32,26 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
 
     List<Integer>childShardIds = new ArrayList<>();
 
-    public SplitShardMetadata(int shardId, int primaryShardId, int min, int max) {
+    public SplitShardMetadata(int shardId, int seedShardId, int min, int max) {
         this.shardId = shardId;
-        this.primaryShardId = primaryShardId;
+        this.seedShardId = seedShardId;
         this.min = min;
         this.max = max;
     }
 
-    public SplitShardMetadata(int shardId, int primaryShardId, int min) {
+    public SplitShardMetadata(int shardId, int seedShardId, int min) {
         this.shardId = shardId;
-        this.primaryShardId = primaryShardId;
+        this.seedShardId = seedShardId;
         this.min = min;
         this.max = Integer.MAX_VALUE;
     }
-    public SplitShardMetadata(int shardId, int primaryShardId) {
-        this(shardId, primaryShardId, 0);
+    public SplitShardMetadata(int shardId, int seedShardId) {
+        this(shardId, seedShardId, 0);
     }
 
     public SplitShardMetadata(StreamInput in) throws IOException {
         shardId = in.readVInt();
-        primaryShardId = in.readVInt();
+        seedShardId = in.readVInt();
         min = in.readVInt();
         max = in.readVInt();
         int numChildRanges = in.readVInt();
@@ -64,8 +64,8 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
         return shardId;
     }
 
-    public int getPrimaryShardId() {
-        return primaryShardId;
+    public int getSeedShardId() {
+        return seedShardId;
     }
 
     public TreeSet<SplitShardMetadata> getEphemeralChildShardMetadata() {
@@ -102,7 +102,7 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
         int start = min;
         for (int i = 0; i < numOfSplits; ++i) {
             int end = i == numOfSplits - 1 ? max : start + rangeSize;
-            SplitShardMetadata child = new SplitShardMetadata(++maxShardId, primaryShardId, start, end);
+            SplitShardMetadata child = new SplitShardMetadata(++maxShardId, seedShardId, start, end);
             addChild(child);
             start = end + 1;
         }
@@ -115,7 +115,7 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeVInt(shardId);
-        out.writeVInt(primaryShardId);
+        out.writeVInt(seedShardId);
         out.writeVInt(min);
         out.writeVInt(max);
         out.writeVInt(ephemeralChildShardMetadata.size());
@@ -125,9 +125,9 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
     }
 
     public void toXContent(XContentBuilder builder) throws IOException {
-        builder.startObject("range");
+        builder.startObject(Integer.toString(shardId));
         builder.field("shard_id", shardId);
-        builder.field("primary_shard_id", primaryShardId);
+        builder.field("primary_shard_id", seedShardId);
         builder.field("min", min);
         builder.field("max", max);
         builder.startObject("child_shard_metadata");
@@ -139,18 +139,18 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
     }
 
     public static SplitShardMetadata parse(XContentParser parser) throws IOException {
-        XContentParser.Token token = parser.currentToken();
-        if (token != XContentParser.Token.START_OBJECT) {
-            throw new IllegalArgumentException("Expected START_OBJECT token but got " + token);
-        }
+        XContentParser.Token token;
         int shardId = -1;
         int primaryShardId = -1;
         int min = -1;
         int max = -1;
+        String fieldName = null;
         List<SplitShardMetadata> childRanges = new ArrayList<>();
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
-                String fieldName = parser.currentName();
+                fieldName = parser.currentName();
+            }
+            else if (token == XContentParser.Token.VALUE_NUMBER) {
                 if ("shard_id".equals(fieldName)) {
                     shardId = parser.intValue();
                 } else if ("primary_shard_id".equals(fieldName)) {
@@ -159,11 +159,11 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
                     min = parser.intValue();
                 } else if ("max".equals(fieldName)) {
                     max = parser.intValue();
-                } else if ("child_shard_metadata".equals(fieldName)) {
+                }
+            } else if (token == XContentParser.Token.START_OBJECT) {
+                if ("child_shard_metadata".equals(fieldName)) {
                     while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
-                        if (token == XContentParser.Token.START_OBJECT) {
-                            childRanges.add(parse(parser));
-                        }
+                        childRanges.add(parse(parser));
                     }
                 }
             }
@@ -182,7 +182,7 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
         SplitShardMetadata that = (SplitShardMetadata) o;
 
         return shardId == that.shardId &&
-            primaryShardId == that.primaryShardId &&
+            seedShardId == that.seedShardId &&
             min == that.min &&
             max == that.max &&
             ephemeralChildShardMetadata.equals(that.ephemeralChildShardMetadata);
@@ -191,7 +191,7 @@ public class SplitShardMetadata extends AbstractDiffable<SplitShardMetadata>  im
     @Override
     public int hashCode() {
         int result = shardId;
-        result = 31 * result + primaryShardId;
+        result = 31 * result + seedShardId;
         result = 31 * result + min;
         result = 31 * result + max;
         result = 31 * result + ephemeralChildShardMetadata.hashCode();

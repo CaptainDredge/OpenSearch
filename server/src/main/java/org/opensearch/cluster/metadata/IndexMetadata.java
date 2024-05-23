@@ -847,7 +847,7 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
     }
 
     public Integer getParentShardIdOrNull(int shardId) {
-        return splitMetadata.getSplitShardMetadata(shardId).getPrimaryShardId();
+        return splitMetadata.getSplitShardMetadata(shardId).getSeedShardId();
     }
 
     public int[] getServingShardIds() {
@@ -1601,6 +1601,10 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             return this;
         }
 
+        public Builder putSplitMetadata(SplitMetadata splitMetadata) {
+            this.splitMetadata = splitMetadata;
+            return this;
+        }
         public Builder putSplitShardMetadata(SplitShardMetadata splitShardMetadata) {
             this.splitMetadata.putSplitShardMetadata(splitShardMetadata);
             return this;
@@ -1937,7 +1941,7 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
             builder.endObject();
 
             builder.startObject(SPLIT_SHARD_METADATA);
-            indexMetadata.splitMetadata.toXContent(builder);
+            indexMetadata.splitMetadata.toXContent(builder, params);
             builder.endObject();
 
             builder.startArray(KEY_SERVING_SHARD_IDS);
@@ -2031,14 +2035,8 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
                         assert Version.CURRENT.major <= 5;
                         parser.skipChildren();
                     } else if (SPLIT_SHARD_METADATA.equals(currentFieldName)) {
-                        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
-                            if (token == XContentParser.Token.FIELD_NAME) {
-                                currentFieldName = parser.currentName();
-                            } else if (token == XContentParser.Token.START_OBJECT) {
-                                builder.putSplitShardMetadata(SplitShardMetadata.parse(parser));
-                            } else {
-                                throw new IllegalArgumentException("Unexpected token: " + token);
-                            }
+                        while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
+                            builder.putSplitMetadata(SplitMetadata.fromXContent(parser));
                         }
                     } else {
                         // assume it's custom index metadata

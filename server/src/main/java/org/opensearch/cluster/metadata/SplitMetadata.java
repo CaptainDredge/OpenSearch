@@ -12,16 +12,18 @@ import org.opensearch.cluster.Diff;
 import org.opensearch.cluster.DiffableUtils;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.Writeable;
+import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-public class SplitMetadata {
+public class SplitMetadata implements ToXContentFragment, Writeable {
     static final String SPLIT_SHARD_METADATA_MAP = "split_shard_metadata_map";
     static final String SPLIT_SEED_SHARD_METADATA_MAP = "split_seed_shard_metadata_map";
     private final Map<Integer, SplitShardMetadata> shardIdToRangeMap;
@@ -29,7 +31,10 @@ public class SplitMetadata {
 
     public SplitMetadata(SplitMetadata splitMetadata) {
         this.shardIdToRangeMap = new HashMap<>(splitMetadata.shardIdToRangeMap);
-        this.shardRanges = new HashMap<>(splitMetadata.shardRanges);
+        this.shardRanges = new HashMap<>();
+        for (Map.Entry<Integer, TreeSet<SplitShardMetadata>> entry : splitMetadata.shardRanges.entrySet()) {
+            this.shardRanges.put(entry.getKey(), new TreeSet<>(entry.getValue()));
+        }
     }
 
     public SplitMetadata() {
@@ -37,10 +42,33 @@ public class SplitMetadata {
         this.shardRanges = new HashMap<>();
     }
 
+    public SplitMetadata(StreamInput in) throws IOException {
+        int size = in.readVInt();
+        this.shardIdToRangeMap = new HashMap<>(size);
+        for (int i = 0; i < size; i++) {
+            SplitShardMetadata splitShardMetadata = new SplitShardMetadata(in);
+            shardIdToRangeMap.put(splitShardMetadata.getShardId(), splitShardMetadata);
+        }
+        int shardRangesSize = in.readVInt();
+        this.shardRanges = new HashMap<>(shardRangesSize);
+        for (int i = 0; i < shardRangesSize; i++) {
+            int shardId = in.readInt();
+            int splitShardMetadataSize = in.readVInt();
+            TreeSet<SplitShardMetadata> splitShardMetadata = new TreeSet<>();
+            for (int j = 0; j < splitShardMetadataSize; j++) {
+                splitShardMetadata.add(new SplitShardMetadata(in));
+            }
+            shardRanges.put(shardId, splitShardMetadata);
+        }
+    }
+
     public SplitShardMetadata getSplitShardMetadata(int shardId) {
         return shardIdToRangeMap.getOrDefault(shardId, new SplitShardMetadata(shardId, shardId));
     }
 
+    public List<Integer> getSplitShardIds() {
+        return List.copyOf(shardIdToRangeMap.keySet());
+    }
     public void putSplitShardMetadata(SplitShardMetadata splitShardMetadata) {
         shardIdToRangeMap.put(splitShardMetadata.getShardId(), splitShardMetadata);
     }
@@ -50,12 +78,12 @@ public class SplitMetadata {
     }
 
     public void putSplitSeedShardMetadata(SplitShardMetadata splitShardMetadata) {
-        if (shardRanges.containsKey(splitShardMetadata.getPrimaryShardId())) {
-            shardRanges.get(splitShardMetadata.getPrimaryShardId()).add(splitShardMetadata);
+        if (shardRanges.containsKey(splitShardMetadata.getSeedShardId())) {
+            shardRanges.get(splitShardMetadata.getSeedShardId()).add(splitShardMetadata);
         } else {
             TreeSet<SplitShardMetadata> splitSeedShardMetadata = new TreeSet<>();
             splitSeedShardMetadata.add(splitShardMetadata);
-            shardRanges.put(splitShardMetadata.getPrimaryShardId(), splitSeedShardMetadata);
+            shardRanges.put(splitShardMetadata.getSeedShardId(), splitSeedShardMetadata);
         }
     }
 
@@ -73,12 +101,12 @@ public class SplitMetadata {
     public void updateSplitMetadataForChildShards(int sourceShardId) {
         SplitShardMetadata sourceShardRange = this.shardIdToRangeMap.get(sourceShardId);
         // Remove parent shard range
-        this.shardRanges.get(sourceShardRange.getPrimaryShardId()).
+        this.shardRanges.get(sourceShardRange.getSeedShardId()).
             remove(sourceShardRange);
 
         // Add child shard ranges
         for(SplitShardMetadata childRange: sourceShardRange.getEphemeralChildShardMetadata()) {
-            this.shardRanges.get(childRange.getPrimaryShardId()).add(childRange);
+            this.shardRanges.get(childRange.getSeedShardId()).add(childRange);
         }
         // Clear child shard ranges
         sourceShardRange.getEphemeralChildShardMetadata().clear();
@@ -124,7 +152,7 @@ public class SplitMetadata {
         }
     }
 
-    public void toXContent(XContentBuilder builder) throws IOException {
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(SPLIT_SHARD_METADATA_MAP);
         for (final SplitShardMetadata cursor : shardIdToRangeMap.values()) {
             cursor.toXContent(builder);
@@ -138,9 +166,10 @@ public class SplitMetadata {
             }
         }
         builder.endObject();
+        return builder;
     }
 
-    public void parse(XContentParser parser, String currentFieldName) throws IOException {
+    private void parse(XContentParser parser, String currentFieldName) throws IOException {
         if (SPLIT_SHARD_METADATA_MAP.equals(currentFieldName)) {
             while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
                 SplitShardMetadata splitShardMetadata = SplitShardMetadata.parse(parser);
@@ -149,20 +178,36 @@ public class SplitMetadata {
         } else if (SPLIT_SEED_SHARD_METADATA_MAP.equals(currentFieldName)) {
             while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
                 SplitShardMetadata splitShardMetadata = SplitShardMetadata.parse(parser);
-                if(shardRanges.containsKey(splitShardMetadata.getPrimaryShardId())) {
-                    shardRanges.get(splitShardMetadata.getPrimaryShardId()).add(splitShardMetadata);
+                if(shardRanges.containsKey(splitShardMetadata.getSeedShardId())) {
+                    shardRanges.get(splitShardMetadata.getSeedShardId()).add(splitShardMetadata);
                 } else {
                     TreeSet<SplitShardMetadata> splitSeedShardMetadata = new TreeSet<>();
                     splitSeedShardMetadata.add(splitShardMetadata);
-                    shardRanges.put(splitShardMetadata.getPrimaryShardId(), splitSeedShardMetadata);
+                    shardRanges.put(splitShardMetadata.getSeedShardId(), splitSeedShardMetadata);
                 }
             }
         }
     }
 
+    public static SplitMetadata fromXContent(XContentParser parser) throws IOException {
+        XContentParser.Token token;
+        String currentFieldName = null;
+        SplitMetadata splitMetadata = new SplitMetadata();
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+            if (token == XContentParser.Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token == XContentParser.Token.START_OBJECT) {
+                splitMetadata.parse(parser, currentFieldName);
+            } else {
+                throw new IllegalArgumentException("Unexpected token: " + token);
+            }
+        }
+        return splitMetadata;
+    }
+
     public static class SplitMetadataDiff implements Diff<SplitMetadata> {
-        private final Diff<Map<Integer, SplitShardMetadata>> shardIdToRangeMap;
-        private final Diff<Map<Integer, TreeSet<SplitShardMetadata>>> shardRanges;
+        public final Diff<Map<Integer, SplitShardMetadata>> shardIdToRangeMap;
+        public final Diff<Map<Integer, TreeSet<SplitShardMetadata>>> shardRanges;
 
         private static final DiffableUtils.DiffableValueReader<Integer, SplitShardMetadata> SPLIT_SHARD_METADATA_DIFFABLE_VALUE_READER =
             new DiffableUtils.DiffableValueReader<>(SplitShardMetadata::new, SplitShardMetadata::readDiffFrom);
