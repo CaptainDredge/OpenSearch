@@ -32,8 +32,7 @@ public class SplitMetadataTests extends AbstractSerializingTestCase<SplitMetadat
         return SplitMetadata::new;
     }
 
-    @Override
-    protected SplitMetadata createTestInstance() {
+    protected static SplitMetadata randomSplitMetadata() {
         SplitMetadata splitMetadata = new SplitMetadata();
         int seedShards = randomIntBetween(3, 10);
         int totalShard = seedShards;
@@ -88,6 +87,11 @@ public class SplitMetadataTests extends AbstractSerializingTestCase<SplitMetadat
         }
 
         return splitMetadata;
+    }
+
+    @Override
+    protected SplitMetadata createTestInstance() {
+        return randomSplitMetadata();
     }
 
     public void testDiff() throws IOException {

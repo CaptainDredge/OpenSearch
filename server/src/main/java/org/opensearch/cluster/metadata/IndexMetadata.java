@@ -948,6 +948,10 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
     public SplitShardMetadata findShardRange(int shardId, int hash) {
         return splitMetadata.findShardRange(shardId, hash);
     }
+
+    public SplitMetadata getSplitMetadata() {
+        return splitMetadata;
+    }
     public SplitShardMetadata getSplitShardMetadata(int shardId) {
         return splitMetadata.getSplitShardMetadata(shardId);
     }
@@ -2035,7 +2039,8 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
                         assert Version.CURRENT.major <= 5;
                         parser.skipChildren();
                     } else if (SPLIT_SHARD_METADATA.equals(currentFieldName)) {
-                        while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
+                        while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
+                            System.out.println("token: " + token);
                             builder.putSplitMetadata(SplitMetadata.fromXContent(parser));
                         }
                     } else {

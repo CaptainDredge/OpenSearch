@@ -118,6 +118,7 @@ public class IndexMetadataTests extends OpenSearchTestCase {
                     randomNonNegativeLong()
                 )
             )
+            .putSplitMetadata(SplitMetadataTests.randomSplitMetadata())
             .build();
         assertEquals(system, metadata.isSystem());
 
@@ -167,6 +168,7 @@ public class IndexMetadataTests extends OpenSearchTestCase {
             assertEquals(deserialized.getCustomData(), expectedCustom);
             assertEquals(metadata.getCustomData(), deserialized.getCustomData());
             assertEquals(metadata.isSystem(), deserialized.isSystem());
+            assertEquals(metadata.getSplitMetadata(), deserialized.getSplitMetadata());
         }
     }
 
